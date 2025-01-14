@@ -97,13 +97,18 @@ class ProductResource extends Resource
                             // Column for Description
                             Tables\Columns\TextColumn::make('description')
                                 ->label('Description')
-                                ->limit(50), // Show only first 50 characters,
+                                ->limit(50),
+                            Tables\Columns\TextColumn::make('subcategory.category.name')
+                                ->label('Parent Category')
+                                ->sortable()
+                                ->searchable(),
+                                // Column for Subcategory Name
+                                Tables\Columns\TextColumn::make('subcategory.name')
+                                    ->label('Subcategory')
+                                    ->sortable()
+                                    ->searchable(),
 
-            // Column for Subcategory Name
-            Tables\Columns\TextColumn::make('subcategory.name')
-                ->label('Subcategory')
-                ->sortable()
-                ->searchable(),
+
         ])
 
 
