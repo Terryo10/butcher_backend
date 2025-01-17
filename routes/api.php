@@ -23,7 +23,7 @@ Route::prefix('auth')->group(function () {
 
     // Social Authentication Routes
     Route::get('google', [AuthController::class, 'redirectToGoogle']);
-    Route::get('google/callback', [AuthController::class, 'handleGoogleCallback']);
+    Route::post('google/callback', [AuthController::class, 'handleGoogleCallback']);
     Route::get('apple', [AuthController::class, 'redirectToApple']);
     Route::get('apple/callback', [AuthController::class, 'handleAppleCallback']);
 
