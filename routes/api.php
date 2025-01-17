@@ -14,9 +14,7 @@ Route::get('/user', function (Request $request) {
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('subcategories', [SubCategoryController::class, 'index']);
 Route::get('products', [ProductController::class, 'index']);
-<<<<<<< HEAD
 Route::get('/search/{name}', [ProductController::class, 'search']);
-=======
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -35,4 +33,3 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
     });
 });
->>>>>>> 56c4af9b25e792dd099332259dff5bf95e356b74
