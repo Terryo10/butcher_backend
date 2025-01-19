@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
-use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 use App\Mail\EmailVerification;
 use App\Notifications\OTPNotification;
@@ -153,34 +154,53 @@ class AuthController extends Controller
         return Socialite::driver('google')->redirect();
     }
 
-    public function handleGoogleCallback()
+
+    public function handleGoogleCallback(Request $request)
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            $idToken = $request->input('id_token');
 
-            $user = User::where('email', $googleUser->email)->first();
+            // Validate ID token with Google
+            $validationUrl = "https://oauth2.googleapis.com/tokeninfo";
+            $response = Http::get($validationUrl, [
+                'id_token' => $idToken,
+            ]);
 
-            if (!$user) {
-                $user = User::create([
-                    'name' => $googleUser->name,
-                    'email' => $googleUser->email,
-                    'google_id' => $googleUser->id,
-                    'password' => Hash::make(Str::random(24)),
-                    'email_verified_at' => now(),
-                ]);
+            if ($response->failed()) {
+                throw new Exception('Invalid ID Token');
             }
 
+            $googleUser = $response->json();
+
+            // Validate Google client ID
+            if ($googleUser['aud'] !== env('GOOGLE_CLIENT_ID')) {
+                throw new Exception('Invalid Client ID');
+            }
+
+            // Find or create user
+            $user = User::firstOrCreate(
+                ['email' => $googleUser['email']],
+                [
+                    'name' => $googleUser['name'] ?? 'Unknown',
+                    'google_id' => $googleUser['sub'],
+                    'password' => Hash::make(Str::random(24)),
+                    'email_verified_at' => now(),
+                ]
+            );
+
+            // Create access token
             $token = $user->createToken('google_auth')->plainTextToken;
 
             return response()->json([
                 'message' => 'Google login successful',
                 'user' => $user,
-                'token' => $token
+                'token' => $token,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Google authentication failed'
+                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 400);
         }
     }
