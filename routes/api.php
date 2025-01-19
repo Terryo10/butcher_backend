@@ -14,7 +14,7 @@ Route::get('/user', function (Request $request) {
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('subcategories', [SubCategoryController::class, 'index']);
 Route::get('products', [ProductController::class, 'index']);
-Route::get('/search/{name}', [ProductController::class, 'search']);
+Route::post('/search/{name}', [ProductController::class, 'search']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
