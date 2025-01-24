@@ -50,6 +50,13 @@ class ProductResource extends Resource
                     ->image() // Restrict to images only
                     ->required(), // Make image mandatory
 
+                // File upload for product image
+                Forms\Components\FileUpload::make('images')
+                    ->multiple()
+                    ->label('Product Image')
+                    ->directory('products')
+                    ->image(),
+
                 // Textarea for product description
                 Forms\Components\Textarea::make('description')
                     ->label('Description')
@@ -70,46 +77,46 @@ class ProductResource extends Resource
         return $table
             ->columns([
 
-                            // Column for Product Name
-                            Tables\Columns\TextColumn::make('name')
-                                ->label('Product Name')
-                                ->searchable()
-                                ->sortable(),
+                // Column for Product Name
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Product Name')
+                    ->searchable()
+                    ->sortable(),
 
-                            // Column for Price
-                            Tables\Columns\TextColumn::make('price')
-                                ->label('Price')
-                                ->money('usd') // Format as currency
-                                ->sortable(),
+                // Column for Price
+                Tables\Columns\TextColumn::make('price')
+                    ->label('Price')
+                    ->money('usd') // Format as currency
+                    ->sortable(),
 
-                            // Column for Stock
-                            Tables\Columns\TextColumn::make('stock')
-                                ->label('Stock')
-                                ->sortable(),
+                // Column for Stock
+                Tables\Columns\TextColumn::make('stock')
+                    ->label('Stock')
+                    ->sortable(),
 
-                            // Column for Product Image
-                            Tables\Columns\ImageColumn::make('image')
-                                ->label('Image')
-                                ->disk('public') // Assuming you're storing images in a public disk
-                                ->height(50) // Set a fixed height
-                                ->width(50),
+                // Column for Product Image
+                Tables\Columns\ImageColumn::make('image')
+                    ->label('Image')
+                    ->disk('public') // Assuming you're storing images in a public disk
+                    ->height(50) // Set a fixed height
+                    ->width(50),
 
-                            // Column for Description
-                            Tables\Columns\TextColumn::make('description')
-                                ->label('Description')
-                                ->limit(50),
-                            Tables\Columns\TextColumn::make('subcategory.category.name')
-                                ->label('Parent Category')
-                                ->sortable()
-                                ->searchable(),
-                                // Column for Subcategory Name
-                                Tables\Columns\TextColumn::make('subcategory.name')
-                                    ->label('Subcategory')
-                                    ->sortable()
-                                    ->searchable(),
+                // Column for Description
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Description')
+                    ->limit(50),
+                Tables\Columns\TextColumn::make('subcategory.category.name')
+                    ->label('Parent Category')
+                    ->sortable()
+                    ->searchable(),
+                // Column for Subcategory Name
+                Tables\Columns\TextColumn::make('subcategory.name')
+                    ->label('Subcategory')
+                    ->sortable()
+                    ->searchable(),
 
 
-        ])
+            ])
 
 
             ->filters([
