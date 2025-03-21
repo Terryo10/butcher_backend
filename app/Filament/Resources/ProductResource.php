@@ -23,45 +23,115 @@ class ProductResource extends Resource
     {
         return $form
             ->schema([
-                // Input for product name
-                Forms\Components\TextInput::make('name')
-                    ->label('Product Name')
-                    ->required() // Make the field mandatory
-                    ->maxLength(255), // Set a maximum length for validation
+                // Basic product details section
+                Forms\Components\Section::make('Basic Information')
+                    ->schema([
+                        Forms\Components\TextInput::make('name')
+                            ->label('Product Name')
+                            ->required()
+                            ->maxLength(255),
 
-                // Input for product price
-                Forms\Components\TextInput::make('price')
-                    ->label('Price')
-                    ->numeric() // Enforce numeric values
-                    ->required() // Make the field mandatory
-                    ->suffix('USD') // Display "USD" as a suffix
-                    ->rules('numeric|min:0.01|max:10000'), // Validate the value range
+                        Forms\Components\Select::make('subcategory_id')
+                            ->label('Subcategory')
+                            ->relationship('subcategory', 'name')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->name} ({$record->category->name})")
+                            ->searchable()
+                            ->preload()
+                            ->required(),
 
-                // Input for product stock
-                Forms\Components\TextInput::make('stock')
-                    ->label('Stock')
-                    ->numeric() // Only allow numeric values
-                    ->required(), // Ensure stock is provided
+                        Forms\Components\FileUpload::make('image')
+                            ->label('Product Image')
+                            ->directory('products')
+                            ->image()
+                            ->required(),
 
-                // File upload for product image
-                Forms\Components\FileUpload::make('image')
-                    ->label('Product Image')
-                    ->directory('products') // Define upload directory
-                    ->image() // Restrict to images only
-                    ->required(), // Make image mandatory
+                        Forms\Components\Textarea::make('description')
+                            ->label('Description')
+                            ->rows(5)
+                            ->required(),
+                    ])
+                    ->columns(2),
 
-                // Textarea for product description
-                Forms\Components\Textarea::make('description')
-                    ->label('Description')
-                    ->rows(5) // Set number of rows for the textarea
-                    ->required(), // Ensure the field is filled
+                // Pricing and quantity section
+                Forms\Components\Section::make('Pricing & Quantity')
+                    ->schema([
+                        Forms\Components\Select::make('pricing_type')
+                            ->label('Pricing Type')
+                            ->options([
+                                'fixed' => 'Fixed Price (per item)',
+                                'weight' => 'Weight-based Price',
+                            ])
+                            ->default('fixed')
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(fn (callable $set) => $set('unit', null)),
 
-                // Dropdown select for subcategory
-                Forms\Components\Select::make('subcategory_id')
-                    ->label('Subcategory')
-                    ->relationship('subcategory', 'name') // Establish relationship
-                    ->searchable() // Allow searching within options
-                    ->required(), // Make the selection mandatory
+                        Forms\Components\TextInput::make('price')
+                            ->label('Price')
+                            ->numeric()
+                            ->required()
+                            ->suffix('USD')
+                            ->rules('numeric|min:0.01|max:10000'),
+
+                        Forms\Components\TextInput::make('stock')
+                            ->label('Stock')
+                            ->numeric()
+                            ->required(),
+
+                        Forms\Components\Select::make('unit')
+                            ->label('Unit')
+                            ->options(function (callable $get) {
+                                if ($get('pricing_type') === 'weight') {
+                                    return [
+                                        'kg' => 'Kilogram (kg)',
+                                        'g' => 'Gram (g)',
+                                        'lb' => 'Pound (lb)',
+                                        'oz' => 'Ounce (oz)',
+                                    ];
+                                }
+
+                                return [
+                                    'piece' => 'Piece',
+                                    'box' => 'Box',
+                                    'pack' => 'Pack',
+                                    'pair' => 'Pair',
+                                    'set' => 'Set',
+                                ];
+                            })
+                            ->required()
+                            ->visible(fn (callable $get) => !is_null($get('pricing_type'))),
+                    ])
+                    ->columns(2),
+
+                // Weight-based product options (conditionally visible)
+                Forms\Components\Section::make('Weight-based Options')
+                    ->schema([
+                        Forms\Components\TextInput::make('weight')
+                            ->label('Weight per Unit')
+                            ->helperText('The weight of a single unit of this product')
+                            ->numeric()
+                            ->rules('nullable|numeric|min:0.01'),
+
+                        Forms\Components\TextInput::make('min_quantity')
+                            ->label('Minimum Order Quantity')
+                            ->helperText('The minimum amount that can be ordered')
+                            ->numeric()
+                            ->rules('nullable|numeric|min:0.01'),
+
+                        Forms\Components\TextInput::make('max_quantity')
+                            ->label('Maximum Order Quantity')
+                            ->helperText('The maximum amount that can be ordered (leave empty for no limit)')
+                            ->numeric()
+                            ->rules('nullable|numeric|min:0.01'),
+
+                        Forms\Components\TextInput::make('increment')
+                            ->label('Quantity Increment')
+                            ->helperText('The step size for increasing/decreasing quantity (e.g., 0.1 kg)')
+                            ->numeric()
+                            ->rules('nullable|numeric|min:0.01'),
+                    ])
+                    ->columns(2)
+                    ->visible(fn (callable $get) => $get('pricing_type') === 'weight'),
             ]);
     }
 
@@ -69,51 +139,60 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Product Name')
+                    ->searchable()
+                    ->sortable(),
 
-                            // Column for Product Name
-                            Tables\Columns\TextColumn::make('name')
-                                ->label('Product Name')
-                                ->searchable()
-                                ->sortable(),
+                Tables\Columns\TextColumn::make('price')
+                    ->label('Price')
+                    ->money('usd')
+                    ->sortable(),
 
-                            // Column for Price
-                            Tables\Columns\TextColumn::make('price')
-                                ->label('Price')
-                                ->money('usd') // Format as currency
-                                ->sortable(),
+                Tables\Columns\TextColumn::make('pricing_type')
+                    ->label('Type')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->color(fn (string $state): string => match ($state) {
+                        'fixed' => 'success',
+                        'weight' => 'info',
+                        default => 'gray',
+                    }),
 
-                            // Column for Stock
-                            Tables\Columns\TextColumn::make('stock')
-                                ->label('Stock')
-                                ->sortable(),
+                Tables\Columns\TextColumn::make('unit')
+                    ->label('Unit'),
 
-                            // Column for Product Image
-                            Tables\Columns\ImageColumn::make('image')
-                                ->label('Image')
-                                ->disk('public') // Assuming you're storing images in a public disk
-                                ->height(50) // Set a fixed height
-                                ->width(50),
+                Tables\Columns\TextColumn::make('stock')
+                    ->label('Stock')
+                    ->sortable(),
 
-                            // Column for Description
-                            Tables\Columns\TextColumn::make('description')
-                                ->label('Description')
-                                ->limit(50),
-                            Tables\Columns\TextColumn::make('subcategory.category.name')
-                                ->label('Parent Category')
-                                ->sortable()
-                                ->searchable(),
-                                // Column for Subcategory Name
-                                Tables\Columns\TextColumn::make('subcategory.name')
-                                    ->label('Subcategory')
-                                    ->sortable()
-                                    ->searchable(),
+                Tables\Columns\ImageColumn::make('image')
+                    ->label('Image')
+                    ->disk('public')
+                    ->height(50)
+                    ->width(50),
 
+                Tables\Columns\TextColumn::make('subcategory.category.name')
+                    ->label('Category')
+                    ->sortable()
+                    ->searchable(),
 
-        ])
-
-
+                Tables\Columns\TextColumn::make('subcategory.name')
+                    ->label('Subcategory')
+                    ->sortable()
+                    ->searchable(),
+            ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('pricing_type')
+                    ->options([
+                        'fixed' => 'Fixed Price',
+                        'weight' => 'Weight-based',
+                    ])
+                    ->label('Pricing Type'),
+
+                Tables\Filters\SelectFilter::make('subcategory_id')
+                    ->relationship('subcategory', 'name')
+                    ->label('Subcategory'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

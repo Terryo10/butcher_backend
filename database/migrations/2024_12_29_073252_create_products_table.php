@@ -15,6 +15,12 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->decimal('price', 10, 2);
+            $table->string('pricing_type')->default('fixed');
+            $table->string('unit')->nullable();
+            $table->decimal('weight', 10, 2)->nullable();
+            $table->decimal('min_quantity', 10, 2)->nullable();
+            $table->decimal('max_quantity', 10, 2)->nullable();
+            $table->decimal('increment', 10, 2)->nullable();
             $table->integer('stock');
             $table->string('image');
             $table->longText('description');

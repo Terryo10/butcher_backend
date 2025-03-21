@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SubcategoryController;
@@ -31,5 +32,14 @@ Route::prefix('auth')->group(function () {
     // Protected Routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
+    });
+
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [CartController::class, 'index']);
+        Route::post('/add', [CartController::class, 'addToCart']);
+        Route::put('/update/{id}', [CartController::class, 'updateCartItem']);
+        Route::delete('/remove/{id}', [CartController::class, 'removeFromCart']);
+        Route::delete('/clear', [CartController::class, 'clearCart']);
+        Route::post('/merge', [CartController::class, 'mergeCart']);
     });
 });
