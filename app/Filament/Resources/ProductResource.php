@@ -40,10 +40,16 @@ class ProductResource extends Resource
                             ->required(),
 
                         Forms\Components\FileUpload::make('image')
-                            ->label('Product Image')
+                            ->label('Main Product Image')
                             ->directory('products')
                             ->image()
                             ->required(),
+
+                        Forms\Components\FileUpload::make('images')
+                            ->label('Additional Product Images')
+                            ->multiple()
+                            ->directory('products')
+                            ->image(),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')
@@ -171,6 +177,10 @@ class ProductResource extends Resource
                     ->disk('public')
                     ->height(50)
                     ->width(50),
+
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Description')
+                    ->limit(50),
 
                 Tables\Columns\TextColumn::make('subcategory.category.name')
                     ->label('Category')

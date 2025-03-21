@@ -20,6 +20,7 @@ class Product extends Model
         'increment',
         'stock',
         'image',
+        'images',
         'description',
         'subcategory_id',
     ];
@@ -30,6 +31,7 @@ class Product extends Model
         'min_quantity' => 'decimal:2',
         'max_quantity' => 'decimal:2',
         'increment' => 'decimal:2',
+        'images' => 'array',
     ];
 
     public function subcategory()
