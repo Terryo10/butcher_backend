@@ -5,22 +5,30 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Cart extends Model
+class PaymentMethod extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'user_id',
-        'session_id',
+        'type',
+        'name',
+        'details',
+        'is_default',
     ];
 
-    public function items()
-    {
-        return $this->hasMany(CartItem::class);
-    }
+    protected $casts = [
+        'details' => 'json',
+        'is_default' => 'boolean',
+    ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
     }
 }

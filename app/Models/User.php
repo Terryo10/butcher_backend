@@ -46,4 +46,52 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Get the user's cart.
+     */
+    public function cart()
+    {
+        return $this->hasOne(Cart::class);
+    }
+
+    /**
+     * Get the user's addresses.
+     */
+    public function addresses()
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    /**
+     * Get the user's payment methods.
+     */
+    public function paymentMethods()
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    /**
+     * Get the user's orders.
+     */
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Get the user's default address.
+     */
+    public function defaultAddress()
+    {
+        return $this->hasOne(Address::class)->where('is_default', true);
+    }
+
+    /**
+     * Get the user's default payment method.
+     */
+    public function defaultPaymentMethod()
+    {
+        return $this->hasOne(PaymentMethod::class)->where('is_default', true);
+    }
 }
