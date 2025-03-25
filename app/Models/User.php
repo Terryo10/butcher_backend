@@ -94,4 +94,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(PaymentMethod::class)->where('is_default', true);
     }
+
+    public function wishlistItems()
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
 }

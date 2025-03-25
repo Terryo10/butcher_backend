@@ -58,4 +58,9 @@ class Product extends Model
         }
         return $this->price * floor($quantity); // For fixed price items, we use whole numbers
     }
+
+    public function wishlistItems()
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
 }
