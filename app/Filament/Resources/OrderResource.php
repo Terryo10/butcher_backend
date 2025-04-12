@@ -59,39 +59,42 @@ class OrderResource extends Resource
                 Forms\Components\Card::make()
                     ->schema([
                         Forms\Components\Placeholder::make('user')
-                            ->content(fn (Order $record): string => $record->user->name ?? 'N/A'),
+                            ->content(fn (?Order $record): string => $record?->user?->name ?? 'N/A'),
                         Forms\Components\Placeholder::make('email')
-                            ->content(fn (Order $record): string => $record->user->email ?? 'N/A'),
+                            ->content(fn (?Order $record): string => $record?->user?->email ?? 'N/A'),
                         Forms\Components\Placeholder::make('subtotal')
-                            ->content(fn (Order $record): string => '$' . number_format($record->subtotal, 2)),
+                            ->content(fn (?Order $record): string => $record ? '$' . number_format($record->subtotal, 2) : 'N/A'),
                         Forms\Components\Placeholder::make('shipping_amount')
-                            ->content(fn (Order $record): string => '$' . number_format($record->shipping_amount, 2)),
+                            ->content(fn (?Order $record): string => $record ? '$' . number_format($record->shipping_amount, 2) : 'N/A'),
                         Forms\Components\Placeholder::make('tax_amount')
-                            ->content(fn (Order $record): string => '$' . number_format($record->tax_amount, 2)),
+                            ->content(fn (?Order $record): string => $record ? '$' . number_format($record->tax_amount, 2) : 'N/A'),
                         Forms\Components\Placeholder::make('discount_amount')
-                            ->content(fn (Order $record): string => '$' . number_format($record->discount_amount, 2)),
+                            ->content(fn (?Order $record): string => $record ? '$' . number_format($record->discount_amount, 2) : 'N/A'),
                         Forms\Components\Placeholder::make('total')
-                            ->content(fn (Order $record): string => '$' . number_format($record->total, 2))
+                            ->content(fn (?Order $record): string => $record ? '$' . number_format($record->total, 2) : 'N/A')
                             ->columnSpan('full'),
                     ])
                     ->columns(2)
-                    ->heading('Order Information'),
+                    ->heading('Order Information')
+                    ->visible(fn (?Order $record): bool => $record !== null), // Hide card when creating
 
                 Forms\Components\Card::make()
                     ->schema([
                         Forms\Components\Placeholder::make('address')
-                            ->content(function (Order $record): string {
-                                if (!$record->address) return 'No address found';
+                            ->content(function (?Order $record): string {
+                                if (!$record || !$record->address) {
+                                    return 'No address found';
+                                }
 
                                 $address = $record->address;
                                 return "{$address->address_line1}, {$address->city}, {$address->state} {$address->postal_code}";
                             })
                             ->columnSpan('full'),
                     ])
-                    ->heading('Shipping Information'),
+                    ->heading('Shipping Information')
+                    ->visible(fn (?Order $record): bool => $record !== null), // Hide card when creating
             ]);
     }
-
     public static function table(Table $table): Table
     {
         return $table

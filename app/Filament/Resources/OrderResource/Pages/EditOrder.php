@@ -30,9 +30,9 @@ class EditOrder extends EditRecord
                     ]);
 
                     // Call the notification function
-                    OrderResource::sendOrderStatusNotification($this->record);
+//                    OrderResource::sendOrderStatusNotification($this->record);
 
-                    $this->notify('success', 'Order status updated successfully');
+//                    $this->notify('success', 'Order status updated successfully');
                 })
                 ->form([
                     Forms\Components\Select::make('status')

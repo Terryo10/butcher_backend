@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Mail\EmailVerification;
 use App\Notifications\OTPNotification;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -88,12 +89,73 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Create access token
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Create refresh token
+        $refreshToken = $user->createToken('refresh_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',
             'user' => $user,
-            'token' => $token
+            'token' => $token,
+            'refresh_token' => $refreshToken
+        ]);
+    }
+
+    public function refreshToken(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'refresh_token' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Extract the token ID and hash
+        $refreshTokenParts = explode('|', $request->refresh_token, 2);
+
+        if (count($refreshTokenParts) !== 2) {
+            return response()->json([
+                'message' => 'Invalid refresh token format'
+            ], 401);
+        }
+
+        // Find the token in the database
+        $tokenId = $refreshTokenParts[0];
+        $tokenModel = PersonalAccessToken::find($tokenId);
+
+        if (!$tokenModel || $tokenModel->name !== 'refresh_token') {
+            return response()->json([
+                'message' => 'Invalid refresh token'
+            ], 401);
+        }
+
+        // Get the user
+        $user = $tokenModel->tokenable;
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        // Revoke all existing tokens
+        $user->tokens()->delete();
+
+        // Generate new tokens
+        $newAccessToken = $user->createToken('auth_token')->plainTextToken;
+        $newRefreshToken = $user->createToken('refresh_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Token refreshed successfully',
+            'user' => $user,
+            'token' => $newAccessToken,
+            'refresh_token' => $newRefreshToken
         ]);
     }
 
@@ -154,7 +216,6 @@ class AuthController extends Controller
         return Socialite::driver('google')->redirect();
     }
 
-
     public function handleGoogleCallback(Request $request)
     {
         try {
@@ -191,10 +252,14 @@ class AuthController extends Controller
             // Create access token
             $token = $user->createToken('google_auth')->plainTextToken;
 
+            // Create refresh token
+            $refreshToken = $user->createToken('refresh_token')->plainTextToken;
+
             return response()->json([
                 'message' => 'Google login successful',
                 'user' => $user,
                 'token' => $token,
+                'refresh_token' => $refreshToken
             ]);
 
         } catch (\Exception $e) {
@@ -228,11 +293,13 @@ class AuthController extends Controller
             }
 
             $token = $user->createToken('apple_auth')->plainTextToken;
+            $refreshToken = $user->createToken('refresh_token')->plainTextToken;
 
             return response()->json([
                 'message' => 'Apple login successful',
                 'user' => $user,
-                'token' => $token
+                'token' => $token,
+                'refresh_token' => $refreshToken
             ]);
 
         } catch (\Exception $e) {
