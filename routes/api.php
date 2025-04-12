@@ -88,6 +88,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Checkout route
     Route::post('/checkout', [CheckoutController::class, 'checkout']);
+    Route::post('/ecocash/initiate/{orderId}', [CheckoutController::class, 'processEcocashPayment']);
+    Route::post('/ecocash/check/{transactionId}', [CheckoutController::class, 'checkEcocashPayment']);
 
     // Order routes
     Route::prefix('orders')->group(function () {

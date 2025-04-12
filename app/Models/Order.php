@@ -22,6 +22,7 @@ class Order extends Model
         'tax_amount',
         'discount_amount',
         'coupon_code',
+        'payment_reference',
         'total',
         'notes',
         'tracking_number',
@@ -62,5 +63,23 @@ class Order extends Model
         $timestamp = now()->format('YmdHis');
         $random = rand(100, 999);
         return $prefix . $timestamp . $random;
+    }
+
+    /**
+     * Get the transaction associated with the order
+     */
+    public function transaction()
+    {
+        return $this->hasOne(Transaction::class);
+    }
+
+    public function orderTotal()
+    {
+        $subtotal = $this->subtotal ?? 0;
+        $shipping = $this->shipping_amount ?? 0;
+        $tax = $this->tax_amount ?? 0;
+        $discount = $this->discount_amount ?? 0;
+
+        return round($subtotal + $shipping + $tax - $discount, 2);
     }
 }

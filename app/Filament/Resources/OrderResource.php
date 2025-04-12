@@ -115,6 +115,22 @@ class OrderResource extends Resource
                         'danger' => 'failed',
                         'primary' => 'refunded',
                     ]),
+                Tables\Columns\TextColumn::make('payment_type')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'ecocash' => 'Ecocash',
+                        'card' => 'Credit Card',
+                        'paypal' => 'PayPal',
+                        'cashOnDelivery' => 'Cash on Delivery',
+                        default => $state,
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'ecocash' => 'success',
+                        'card' => 'primary',
+                        'paypal' => 'info',
+                        'cashOnDelivery' => 'warning',
+                        default => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('total')
                     ->money('usd'),
                 Tables\Columns\TextColumn::make('created_at')
@@ -165,6 +181,63 @@ class OrderResource extends Resource
                             ->title('Order status updated successfully')
                             ->success()
                             ->send();
+                    }),
+                Tables\Actions\Action::make('check_ecocash_payment')
+                    ->label('Check Ecocash Payment')
+                    ->icon('heroicon-o-currency-dollar')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->visible(fn (Order $record): bool =>
+                        $record->payment_type === 'ecocash' &&
+                        $record->payment_status === 'pending' &&
+                        $record->payment_reference
+                    )
+                    ->action(function (Order $record) {
+                        try {
+                            // Get the transaction if it exists
+                            $transaction = $record->transaction;
+
+                            if (!$transaction || !$transaction->poll_url) {
+                                Notification::make()
+                                    ->title('No payment information')
+                                    ->body('No valid payment reference found for this order.')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            // Check payment status
+                            $controller = app(\App\Http\Controllers\Controller::class);
+                            $status = $controller->paynow($transaction->id, "ecocash")
+                                ->pollTransaction($transaction->poll_url);
+
+                            if ($status->paid()) {
+                                // Update transaction and order
+                                $transaction->update(['isPaid' => true]);
+                                $record->update([
+                                    'payment_status' => 'paid',
+                                    'status' => 'processing'
+                                ]);
+
+                                Notification::make()
+                                    ->title('Payment confirmed')
+                                    ->body('The Ecocash payment has been confirmed.')
+                                    ->success()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('Payment still pending')
+                                    ->body('The Ecocash payment has not been confirmed yet.')
+                                    ->warning()
+                                    ->send();
+                            }
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Error checking payment')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
             ])
             ->bulkActions([

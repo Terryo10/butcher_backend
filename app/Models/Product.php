@@ -56,7 +56,7 @@ class Product extends Model
         if ($this->isWeightBased()) {
             return $this->price * $quantity;
         }
-        return $this->price * floor($quantity); // For fixed price items, we use whole numbers
+        return $this->price * floor($quantity);
     }
 
     public function wishlistItems()

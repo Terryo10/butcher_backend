@@ -17,8 +17,9 @@ return new class extends Migration
             $table->string('order_number')->unique();
             $table->string('status')->default('pending'); // pending, processing, completed, cancelled
             $table->string('payment_status')->default('pending'); // pending, paid, failed
-            $table->string('payment_type'); // card, paypal, cash_on_delivery
+            $table->string('payment_type'); // card, paypal, cash_on_delivery, ecocash
             $table->foreignId('payment_method_id')->nullable()->constrained()->onDelete('set null');
+            $table->string('payment_reference')->nullable(); // Added here in the correct position
             $table->foreignId('address_id')->constrained()->onDelete('restrict');
             $table->decimal('subtotal', 10, 2);
             $table->decimal('shipping_amount', 10, 2)->default(0);

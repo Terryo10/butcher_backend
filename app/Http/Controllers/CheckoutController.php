@@ -8,7 +8,7 @@ use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PaymentMethod;
-use App\Models\Product;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +23,9 @@ class CheckoutController extends Controller
     {
         $request->validate([
             'address_id' => 'required|exists:addresses,id',
-            'payment_type' => 'required|string|in:card,paypal,cashOnDelivery',
+            'payment_type' => 'required|string|in:card,paypal,cashOnDelivery,ecocash',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
+            'ecocash_number' => 'nullable|required_if:payment_type,ecocash|string', // Add this line
             'card_details' => 'nullable|required_if:payment_type,card|array',
             'card_details.card_name' => 'nullable|required_if:payment_type,card|string',
             'card_details.card_number' => 'nullable|required_if:payment_type,card|string',
@@ -117,6 +118,65 @@ class CheckoutController extends Controller
                     $paymentResult = $this->processPayPalPayment($order, $request);
                     break;
 
+                case 'ecocash':
+                    // Validate Ecocash number is provided
+                    if (!$request->has('ecocash_number') || empty($request->ecocash_number)) {
+                        throw ValidationException::withMessages([
+                            'ecocash_number' => ['Ecocash number is required']
+                        ]);
+                    }
+
+                    // For Ecocash, we create the order and transaction
+                    $paymentResult = [
+                        'success' => true,
+                        'status' => 'pending',
+                        'message' => 'Order created. Please proceed to complete Ecocash payment.',
+                        'order_id' => $order->id
+                    ];
+                    // Create transaction record
+                    $transaction = Transaction::create([
+                        'order_id' => $order->id,
+                        'user_id' => $user->id,
+                        'type' => 'ecocash',
+                        'details' => [
+                            'phone_number' => $request->ecocash_number
+                        ],
+                        'total' => $order->total,
+                        'isPaid' => false
+                    ]);
+
+                    // Immediately trigger the Ecocash payment
+                    $payment = $this->paynow()->createPayment($order->id, $user->email);
+                    $payment->add("Order #" . $order->id, $order->total);
+
+
+                    $payment->add("Order Payment for " . $order->id, $order->total);
+                    $response = $this->paynow()->send($payment);
+
+                    if ($response->success()) {
+                        $transaction->update([
+                            'poll_url' => $response->pollUrl(),
+
+                        ]);
+
+                        $paymentResult = [
+                            'success' => $response->success(),
+                            'status' => 'pending',
+                            'message' => 'Ecocash payment initiated. Please confirm on your phone.',
+                            'order_id' => $order->id,
+                            'transaction_id' => $transaction->id,
+                            'poll_url' => $response->pollUrl()
+                        ];
+                    } else {
+                        $paymentResult = [
+                            'success' => false,
+                            'status' => 'failed',
+                            'message' => 'Failed to initiate Ecocash payment: ' . $response->errors(),
+                            'order_id' => $order->id
+                        ];
+                    }
+                    break;
+
                 case 'cashOnDelivery':
                     // No payment processing needed for COD
                     $paymentResult = [
@@ -157,6 +217,122 @@ class CheckoutController extends Controller
                 'payment_result' => $paymentResult,
             ]);
         });
+    }
+
+    /**
+     * Process Ecocash payment with Paynow
+     */
+    public function processEcocashPayment(Request $request, $orderId)
+    {
+        try {
+            $order = Order::findOrFail($orderId);
+
+            // Verify order belongs to user
+            if ($order->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this order'
+                ], 403);
+            }
+
+            // Get transaction
+            $transaction = Transaction::where('order_id', $orderId)->first();
+
+            if (!$transaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction not found'
+                ], 404);
+            }
+
+            // Get the phone number from transaction details
+            $phoneNumber = isset($transaction->details['phone_number'])
+                ? $transaction->details['phone_number']
+                : null;
+
+            if (!$phoneNumber) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ecocash phone number not found'
+                ], 400);
+            }
+
+            $payment = $this->paynow()->createPayment($order->id, Auth::user()->email);
+            $payment->add("Order #" . $order->order_number, $order->total);
+
+            // Include the phone number in the payment
+            $response = $this->paynow()->sendMobile($payment, $phoneNumber, 'ecocash');
+
+            if ($response->success()) {
+                $transaction->update([
+                    'poll_url' => $response->pollUrl(),
+                    'reference' => $response->reference()
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Ecocash payment initiated',
+                    'poll_url' => $response->pollUrl(),
+                    'transaction_id' => $transaction->id
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to initiate payment: ' . $response->error()
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Check Ecocash payment status
+     */
+    public function checkEcocashPayment(Request $request, $transactionId)
+    {
+        try {
+            $transaction = Transaction::findOrFail($transactionId);
+            $order = Order::findOrFail($transaction->order_id);
+
+            // Verify order belongs to user
+            if ($order->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this transaction'
+                ], 403);
+            }
+
+            $status = $this->paynow()->pollTransaction($transaction->poll_url);
+
+            if ($status->paid()) {
+                // Update status
+                $transaction->update(['isPaid' => true]);
+                $order->update([
+                    'payment_status' => 'paid',
+                    'status' => 'processing'
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'is_paid' => true,
+                    'message' => 'Payment successful'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => true,
+                    'is_paid' => false,
+                    'message' => 'Payment pending'
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error checking payment: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

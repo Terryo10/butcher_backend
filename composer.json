@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.16",
         "laravel/tinker": "^2.9",
+        "paynow/php-sdk": "^1.0",
         "vonage/client": "^4.1"
     },
     "require-dev": {
