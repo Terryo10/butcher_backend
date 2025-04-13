@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Contracts\Role;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -99,4 +101,58 @@ class User extends Authenticatable
     {
         return $this->hasMany(WishlistItem::class);
     }
+
+    public function deliveries()
+    {
+        return $this->hasMany(Delivery::class, 'driver_id');
+    }
+
+    /**
+     * Get the driver application for this user.
+     */
+    public function driverApplication()
+    {
+        return $this->hasOne(DriverApplication::class);
+    }
+
+    /**
+     * Check if the user is a driver.
+     */
+    public function isDriver(): bool
+    {
+        return $this->hasRole('driver');
+    }
+
+    /**
+     * Get active deliveries for this driver.
+     */
+    public function activeDeliveries()
+    {
+        return $this->deliveries()->inProgress();
+    }
+
+    /**
+     * Get completed deliveries for this driver.
+     */
+    public function completedDeliveries()
+    {
+        return $this->deliveries()->completed();
+    }
+
+    /**
+     * Get delivery notifications for this user.
+     */
+    public function deliveryNotifications()
+    {
+        return $this->hasMany(DeliveryNotification::class);
+    }
+
+    /**
+     * Get unread delivery notifications for this user.
+     */
+    public function unreadDeliveryNotifications()
+    {
+        return $this->deliveryNotifications()->unread();
+    }
+
 }

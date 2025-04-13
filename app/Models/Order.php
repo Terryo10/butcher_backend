@@ -82,4 +82,55 @@ class Order extends Model
 
         return round($subtotal + $shipping + $tax - $discount, 2);
     }
+
+    public function delivery()
+    {
+        return $this->hasOne(Delivery::class);
+    }
+
+    /**
+     * Create a delivery for this order.
+     */
+    public function createDelivery(array $attributes = []): Delivery
+    {
+        $pendingStatusId = DeliveryStatus::where('name', 'pending')->first()->id;
+
+        $deliveryData = array_merge([
+            'delivery_status_id' => $pendingStatusId,
+            'delivery_fee' => $this->shipping_amount,
+        ], $attributes);
+
+        $delivery = $this->delivery()->create($deliveryData);
+
+        // Create notification for admins
+        DeliveryNotification::create([
+            'type' => 'new_order',
+            'delivery_id' => $delivery->id,
+            'order_id' => $this->id,
+            'title' => 'New Order For Delivery',
+            'body' => "New order #{$this->order_number} requires delivery",
+            'data' => [
+                'delivery_id' => $delivery->id,
+                'order_number' => $this->order_number,
+                'customer_name' => $this->user->name,
+                'total' => $this->total,
+            ],
+        ]);
+
+        return $delivery;
+    }
+
+    /**
+     * Observer method to create delivery automatically on order creation.
+     */
+    protected static function booted()
+    {
+        parent::booted();
+
+        static::created(function ($order) {
+            if ($order->requires_delivery && $order->payment_type === 'cash_on_delivery') {
+                $order->createDelivery();
+            }
+        });
+    }
 }

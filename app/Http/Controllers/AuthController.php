@@ -46,11 +46,11 @@ class AuthController extends Controller
         ]);
 
         // Send verification based on registration method
-        if ($request->email) {
-            Mail::to($user->email)->send(new EmailVerification($user));
-        } else {
-            $user->notify(new OTPNotification($otp));
-        }
+//        if ($request->email) {
+//            Mail::to($user->email)->send(new EmailVerification($user));
+//        } else {
+//            $user->notify(new OTPNotification($otp));
+//        }
 
         return response()->json([
             'message' => 'Registration successful. Please verify your account.',
@@ -90,17 +90,7 @@ class AuthController extends Controller
         }
 
         // Create access token
-        $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Create refresh token
-        $refreshToken = $user->createToken('refresh_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login successful',
-            'user' => $user,
-            'token' => $token,
-            'refresh_token' => $refreshToken
-        ]);
     }
 
     public function refreshToken(Request $request)
