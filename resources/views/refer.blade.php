@@ -1,18 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
-<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
-
 <head>
     <!--====== Required meta tags ======-->
     <meta charset="utf-8" />
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
-    <meta name="description" content="Area51Booze - Alcohol Delivery App" />
+    <meta name="description" content="" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
     <!--====== Title ======-->
-    <title>Area51Booze App</title>
+    <title>Future+ App</title>
 
     <!--====== Favicon Icon ======-->
     <link rel="shortcut icon" href="assets/images/favicon.png" type="image/png" />
@@ -39,42 +35,43 @@
     <!--====== Style css ======-->
     <link rel="stylesheet" href="assets/css/style.css" />
 
-    <link rel="stylesheet" href="assets/css/responsive.css" />
-    <!-- responsive css   -->
+    <style>
+        .appie-hero-content ul {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+        .appie-hero-content ul li {
+            margin: 0 10px;
+        }
+        .appie-error-content p {
+            margin-bottom: 5px; /* Adjusts the spacing below the paragraphs */
+        }
+        .appie-error-content h2 {
+            margin-bottom: 10px; /* Adjusts the spacing below the referral code */
+        }
+    </style>
 </head>
 
 <body>
-<!--  preloader start -->
-<div class="loader-wrap">
-    <div class="preloader">
-        <div class="preloader-close">Area51Booze</div>
-    </div>
-    <div class="layer layer-one"><span class="overlay"></span></div>
-    <div class="layer layer-two"><span class="overlay"></span></div>
-    <div class="layer layer-three"><span class="overlay"></span></div>
-</div>
-
-<!--  preloader end -->
-
 <!--====== PART START ======-->
 
 <header class="appie-header-area appie-sticky">
     <div class="container">
         <div class="header-nav-box">
             <div class="row align-items-center">
-                <div class="order-1 col-lg-2 col-md-4 col-sm-5 col-6 order-sm-1">
+                <div class="col-lg-2 col-md-4 col-sm-5 col-6 order-1 order-sm-1">
                     <div class="appie-logo-box">
-                        <a href="/">
-                            <img src="assets/images/logo.png" alt="Area51Booze Logo" />
+                        <a href="index.html">
+                            <img src="assets/images/logo.png" alt="" />
                         </a>
                     </div>
                 </div>
-                <div class="order-3 col-lg-6 col-md-1 col-sm-1 order-sm-2"></div>
-                <div class="order-2 col-lg-4 col-md-7 col-sm-6 col-6 order-sm-3">
-                    <div class="text-right appie-btn-box">
-                        <a class="main-btn ml-30" href="#"
-                        >Privacy Policy</a
-                        >
+                <div class="col-lg-6 col-md-1 col-sm-1 order-3 order-sm-2"></div>
+                <div class="col-lg-4 col-md-7 col-sm-6 col-6 order-2 order-sm-3">
+                    <div class="appie-btn-box text-right">
+                        <a class="main-btn ml-30" href="index.html">About App</a>
                     </div>
                 </div>
             </div>
@@ -84,29 +81,29 @@
 
 <!--====== PART ENDS ======-->
 
-<!--====== APPIE HERO PART START ======-->
-<br>
-<br>
-<section class="appie-hero-area">
+<div class="appie-error-area">
     <div class="container">
-        <div class="row align-items-center">
+        <div class="row justify-content-center">
             <div class="col-lg-6">
+                <div class="appie-error-content text-center">
+                    <img src="/assets/images/error.png" alt="" width="400"/>
+                    <h3 class="title">Hi, Referral to Yamba App</h3>
+                    <p>Your friend {{$user->name}} has referred you to the Yamba App</p>
+                    <p>Use code below as your sign up Referral</p>
+                    <h2>{{$user->referral_code}}</h2>
+                </div>
                 <div class="appie-hero-content appie-hero-content-6">
-                    <span>DRINKS DELIVERED TO YOUR DOOR</span>
-                    <h1 class="appie-title">Welcome to Area 51 Booze</h1>
-                    <p>
-                        Your premium alcohol delivery service. Get beer, wine, spirits, and mixers 
-                        delivered straight to your doorstep in under 30 minutes. Must be 18+ to order.
-                    </p>
                     <ul>
                         <li>
-                            <a href="#"
+                            <a href="https://apps.apple.com/us/app/yamba-uganda/id6502561227"
                             ><i class="fab fa-apple"></i>
                                 <span>Available on the <span>App Store</span></span></a
                             >
                         </li>
                         <li>
-                            <a class="item-2" href="#"
+                            <a
+                                class="item-2"
+                                href="https://play.google.com/store/apps/details?id=com.un.yamba_app"
                             ><i class="fab fa-google-play"></i>
                                 <span>Available on the <span>Google Play</span></span></a
                             >
@@ -114,47 +111,11 @@
                     </ul>
                 </div>
             </div>
-            <div class="col-lg-6">
-                <div class="appie-hero-thumb">
-                    <div class="thumb">
-                        <img src="assets/images/hero-thumb-1.png" alt="Area51Booze App Screenshot" />
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
-    <div class="hero-shape-1">
-        <img src="assets/images/shape/1.png" alt="" />
-    </div>
-    <div class="hero-shape-2">
-        <img src="assets/images/shape/shape-1.png" alt="" />
-    </div>
-    <div class="hero-shape-3">
-        <img src="assets/images/shape/shape-4.png" alt="" />
-    </div>
-</section>
+</div>
 
-<!--====== APPIE HERO PART ENDS ======-->
 
-<!--====== APPIE FOOTER PART START ======-->
-
-<section class="appie-footer-area">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-12">
-                <div
-                    class="footer-copyright d-flex align-items-center justify-content-between pt-35"
-                >
-                    <div class="copyright-text">
-                        <p>Copyright © 2025 Area51Booze. All rights reserved. Must be 18+ to use our services.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!--====== APPIE FOOTER PART ENDS ======-->
 
 <!--====== APPIE BACK TO TOP PART ENDS ======-->
 <div class="back-to-top">
@@ -185,10 +146,6 @@
 
 <!--====== Magnific Popup js ======-->
 <script src="assets/js/jquery.magnific-popup.min.js"></script>
-
-<!--====== Fontawesome js ======-->
-
-<!-- <script src="assets/js/fontawesome.min.js"></script> -->
 
 <!--====== Main js ======-->
 <script src="assets/js/main.js"></script>
