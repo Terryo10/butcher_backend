@@ -266,7 +266,7 @@ class CheckoutController extends Controller
             if ($response->success()) {
                 $transaction->update([
                     'poll_url' => $response->pollUrl(),
-                    'reference' => $response->reference()
+
                 ]);
 
                 return response()->json([

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Address;
+use App\Models\DeliveryLocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -16,8 +17,10 @@ class AddressController extends Controller
     {
         $user = Auth::user();
         $addresses = $user->addresses;
+        $locations = DeliveryLocation::all();
 
         return response()->json([
+            'delivery_locations' => $locations,
             'addresses' => $addresses
         ]);
     }
@@ -38,6 +41,7 @@ class AddressController extends Controller
             'postal_code' => 'required|string|max:20',
             'country' => 'required|string|max:100',
             'is_default' => 'nullable|boolean',
+            'delivery_location_id'=> 'required',
         ]);
 
         $user = Auth::user();
@@ -63,6 +67,7 @@ class AddressController extends Controller
             'postal_code' => $request->postal_code,
             'country' => $request->country,
             'is_default' => $isDefault,
+            'delivery_location_id'=>$request->delivery_location_id,
         ]);
 
         return response()->json([

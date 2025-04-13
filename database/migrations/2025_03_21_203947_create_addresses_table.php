@@ -19,7 +19,8 @@ return new class extends Migration
                 $table->string('phone_number');
                 $table->string('address_line1');
                 $table->string('address_line2')->nullable();
-                $table->string('city')->default(false);
+                $table->string('city')->default('Harare');
+                $table->foreignId('delivery_location_id')->constrained();
                 $table->string('state')->nullable();
                 $table->string('postal_code')->nullable();
                 $table->string('country');
