@@ -10,7 +10,6 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class DeliveryLocationResource extends Resource
 {
@@ -18,25 +17,31 @@ class DeliveryLocationResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
 
-    protected static ?string $navigationGroup = 'Delivery Management';
+    protected static ?string $navigationGroup = 'Shop Settings';
 
-    protected static ?string $recordTitleAttribute = 'location_name';
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('location_name')
-                    ->required()
-                    ->maxLength(255)
-                    ->label('Location Name'),
-
-                Forms\Components\TextInput::make('price')
-                    ->required()
-                    ->numeric()
-                    ->prefix('$')
-                    ->label('Delivery Price'),
-
+                Forms\Components\Card::make()
+                    ->schema([
+                        Forms\Components\TextInput::make('location_name')
+                            ->required()
+                            ->maxLength(255)
+                            ->label('Location Name'),
+                        Forms\Components\TextInput::make('price')
+                            ->required()
+                            ->numeric()
+                            ->prefix('$')
+                            ->step(0.01)
+                            ->minValue(0)
+                            ->label('Delivery Price'),
+                        Forms\Components\Textarea::make('description')
+                            ->maxLength(65535)
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 
@@ -48,31 +53,53 @@ class DeliveryLocationResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->label('Location Name'),
-
                 Tables\Columns\TextColumn::make('price')
                     ->money('USD')
                     ->sortable()
                     ->label('Delivery Price'),
-
+                Tables\Columns\TextColumn::make('addresses_count')
+                    ->counts('addresses')
+                    ->label('Addresses'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-
+            ->filters([
+                //
+            ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (DeliveryLocation $record, Tables\Actions\DeleteAction $action) {
+                        // Check if location is in use by any addresses
+                        if ($record->addresses()->count() > 0) {
+                            $action->cancel();
+                            $action->halt('Cannot delete this location as it is being used by one or more addresses.');
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records, Tables\Actions\DeleteBulkAction $action) {
+                            // Check if any locations are in use
+                            foreach ($records as $record) {
+                                if ($record->addresses()->count() > 0) {
+                                    $action->cancel();
+                                    $action->halt('Cannot delete some locations as they are being used by addresses.');
+                                    break;
+                                }
+                            }
+                        }),
                 ]),
+            ])
+            ->emptyStateActions([
+                Tables\Actions\CreateAction::make(),
             ]);
     }
 

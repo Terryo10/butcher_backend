@@ -15,13 +15,24 @@ class AddressController extends Controller
      */
     public function index()
     {
-        $user = Auth::user();
-        $addresses = $user->addresses;
-        $locations = DeliveryLocation::all();
+        $addresses = Address::with('deliveryLocation')
+            ->where('user_id', Auth::id())
+            ->get();
 
         return response()->json([
-            'delivery_locations' => $locations,
             'addresses' => $addresses
+        ]);
+    }
+
+    /**
+     * Get all delivery locations
+     */
+    public function getDeliveryLocations()
+    {
+        $deliveryLocations = DeliveryLocation::all();
+
+        return response()->json([
+            'delivery_locations' => $deliveryLocations
         ]);
     }
 
@@ -40,21 +51,21 @@ class AddressController extends Controller
             'state' => 'required|string|max:100',
             'postal_code' => 'required|string|max:20',
             'country' => 'required|string|max:100',
+            'delivery_location_id' => 'required|exists:delivery_locations,id',
             'is_default' => 'nullable|boolean',
-            'delivery_location_id'=> 'required',
         ]);
+
+        // Check if delivery location exists
+        $deliveryLocation = DeliveryLocation::find($request->delivery_location_id);
+        if (!$deliveryLocation) {
+            throw ValidationException::withMessages([
+                'delivery_location_id' => ['Invalid delivery location']
+            ]);
+        }
 
         $user = Auth::user();
 
-        // If this is the first address or is_default is true, update all other addresses
-        $isDefault = $request->input('is_default', false);
-        if ($isDefault || $user->addresses->count() === 0) {
-            // Set all existing addresses to non-default
-            Address::where('user_id', $user->id)
-                ->update(['is_default' => false]);
-            $isDefault = true;
-        }
-
+        // Create new address
         $address = Address::create([
             'user_id' => $user->id,
             'label' => $request->label,
@@ -66,21 +77,50 @@ class AddressController extends Controller
             'state' => $request->state,
             'postal_code' => $request->postal_code,
             'country' => $request->country,
-            'is_default' => $isDefault,
-            'delivery_location_id'=>$request->delivery_location_id,
+            'delivery_location_id' => $request->delivery_location_id,
+            'is_default' => $request->is_default ?? false,
         ]);
+
+        // If this is set as default, update all other addresses
+        if ($request->is_default) {
+            Address::where('user_id', $user->id)
+                ->where('id', '!=', $address->id)
+                ->update(['is_default' => false]);
+        }
+
+        // Load the delivery location relationship
+        $address->load('deliveryLocation');
 
         return response()->json([
             'message' => 'Address created successfully',
-            'address' => $address
+            'address' => $address,
         ], 201);
     }
 
     /**
-     * Update an existing address
+     * Get a specific address
+     */
+    public function show($id)
+    {
+        $address = Address::with('deliveryLocation')
+            ->where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        return response()->json([
+            'address' => $address
+        ]);
+    }
+
+    /**
+     * Update an address
      */
     public function update(Request $request, $id)
     {
+        $address = Address::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
         $request->validate([
             'label' => 'sometimes|required|string|max:50',
             'full_name' => 'sometimes|required|string|max:100',
@@ -91,26 +131,48 @@ class AddressController extends Controller
             'state' => 'sometimes|required|string|max:100',
             'postal_code' => 'sometimes|required|string|max:20',
             'country' => 'sometimes|required|string|max:100',
+            'delivery_location_id' => 'sometimes|required|exists:delivery_locations,id',
             'is_default' => 'nullable|boolean',
         ]);
 
-        $user = Auth::user();
-        $address = Address::where('id', $id)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
+        // Check if delivery location exists if provided
+        if ($request->has('delivery_location_id')) {
+            $deliveryLocation = DeliveryLocation::find($request->delivery_location_id);
+            if (!$deliveryLocation) {
+                throw ValidationException::withMessages([
+                    'delivery_location_id' => ['Invalid delivery location']
+                ]);
+            }
+        }
 
-        // If setting as default, update all other addresses
-        if ($request->has('is_default') && $request->is_default) {
-            Address::where('user_id', $user->id)
+        // Update address details
+        $address->update($request->only([
+            'label',
+            'full_name',
+            'phone_number',
+            'address_line1',
+            'address_line2',
+            'city',
+            'state',
+            'postal_code',
+            'country',
+            'delivery_location_id',
+            'is_default',
+        ]));
+
+        // If this is set as default, update all other addresses
+        if ($request->is_default) {
+            Address::where('user_id', Auth::id())
                 ->where('id', '!=', $address->id)
                 ->update(['is_default' => false]);
         }
 
-        $address->update($request->all());
+        // Load the delivery location relationship
+        $address->load('deliveryLocation');
 
         return response()->json([
             'message' => 'Address updated successfully',
-            'address' => $address
+            'address' => $address,
         ]);
     }
 
@@ -119,30 +181,21 @@ class AddressController extends Controller
      */
     public function destroy($id)
     {
-        $user = Auth::user();
         $address = Address::where('id', $id)
-            ->where('user_id', $user->id)
+            ->where('user_id', Auth::id())
             ->firstOrFail();
 
-        // Check if this is the only address
-        if ($user->addresses->count() <= 1) {
-            throw ValidationException::withMessages([
-                'address' => ['Cannot delete the only address']
-            ]);
-        }
-
-        // If this was the default address, set another one as default
-        if ($address->is_default) {
-            $newDefault = Address::where('user_id', $user->id)
-                ->where('id', '!=', $address->id)
-                ->first();
-
-            if ($newDefault) {
-                $newDefault->update(['is_default' => true]);
-            }
-        }
+        $wasDefault = $address->is_default;
 
         $address->delete();
+
+        // If the deleted address was the default, set another address as default
+        if ($wasDefault) {
+            $newDefaultAddress = Address::where('user_id', Auth::id())->first();
+            if ($newDefaultAddress) {
+                $newDefaultAddress->update(['is_default' => true]);
+            }
+        }
 
         return response()->json([
             'message' => 'Address deleted successfully'
@@ -154,20 +207,19 @@ class AddressController extends Controller
      */
     public function setDefault($id)
     {
-        $user = Auth::user();
         $address = Address::where('id', $id)
-            ->where('user_id', $user->id)
+            ->where('user_id', Auth::id())
             ->firstOrFail();
 
-        // Set all addresses to non-default
-        Address::where('user_id', $user->id)
+        // Update all addresses to non-default
+        Address::where('user_id', Auth::id())
             ->update(['is_default' => false]);
 
-        // Set selected address as default
+        // Set this address as default
         $address->update(['is_default' => true]);
 
         return response()->json([
-            'message' => 'Default address updated successfully',
+            'message' => 'Address set as default successfully',
             'address' => $address
         ]);
     }

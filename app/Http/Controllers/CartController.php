@@ -187,15 +187,21 @@ class CartController extends Controller
         return $this->index();
     }
 
+    // Update your removeFromCart method for better error handling
     public function removeFromCart($id)
     {
         $cart = $this->getOrCreateCart();
+
         $cartItem = CartItem::where('cart_id', $cart->id)
             ->where('id', $id)
-            ->firstOrFail();
+            ->first(); // Use first() instead of firstOrFail()
+
+        if (!$cartItem) {
+            // Item not found - return current cart instead of throwing 404
+            return $this->index();
+        }
 
         $cartItem->delete();
-
         return $this->index();
     }
 

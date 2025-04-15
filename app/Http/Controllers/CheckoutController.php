@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PaymentMethod;
 use App\Models\Transaction;
+use App\Services\TaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,18 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
+    protected $taxService;
+
+    /**
+     * Create a new controller instance.
+     *
+     * @param TaxService $taxService
+     * @return void
+     */
+    public function __construct(TaxService $taxService)
+    {
+        $this->taxService = $taxService;
+    }
     /**
      * Process a checkout request and create an order
      */
@@ -25,7 +38,7 @@ class CheckoutController extends Controller
             'address_id' => 'required|exists:addresses,id',
             'payment_type' => 'required|string|in:card,paypal,cashOnDelivery,ecocash',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
-            'ecocash_number' => 'nullable|required_if:payment_type,ecocash|string', // Add this line
+            'ecocash_number' => 'nullable|required_if:payment_type,ecocash|string',
             'card_details' => 'nullable|required_if:payment_type,card|array',
             'card_details.card_name' => 'nullable|required_if:payment_type,card|string',
             'card_details.card_number' => 'nullable|required_if:payment_type,card|string',
@@ -37,10 +50,18 @@ class CheckoutController extends Controller
 
         $user = Auth::user();
 
-        // Validate address belongs to user
-        $address = Address::where('id', $request->address_id)
+        // Validate address belongs to user and has a delivery location
+        $address = Address::with('deliveryLocation')
+            ->where('id', $request->address_id)
             ->where('user_id', $user->id)
             ->firstOrFail();
+
+        // Ensure address has a delivery location
+        if (!$address->deliveryLocation) {
+            throw ValidationException::withMessages([
+                'address_id' => ['The selected address does not have a valid delivery location']
+            ]);
+        }
 
         // If payment method provided, validate it belongs to user
         $paymentMethod = null;
@@ -86,9 +107,9 @@ class CheckoutController extends Controller
                 'subtotal' => $cart->items->sum('total_price'),
                 'discount_amount' => $cart->discount_amount,
                 'coupon_code' => $cart->coupon_code,
-                'tax_amount' => $this->calculateTax($cart),
-                'shipping_amount' => $this->calculateShipping($cart),
-                'total' => $this->calculateTotal($cart),
+                'tax_amount' => $this->taxService->calculateTax($cart, $address),
+                'shipping_amount' => $this->calculateShipping($cart, $address),
+                'total' => $this->calculateTotal($cart, $address),
                 'notes' => $request->notes,
             ]);
 
@@ -149,14 +170,12 @@ class CheckoutController extends Controller
                     $payment = $this->paynow()->createPayment($order->id, $user->email);
                     $payment->add("Order #" . $order->id, $order->total);
 
-
                     $payment->add("Order Payment for " . $order->id, $order->total);
                     $response = $this->paynow()->send($payment);
 
                     if ($response->success()) {
                         $transaction->update([
                             'poll_url' => $response->pollUrl(),
-
                         ]);
 
                         $paymentResult = [
@@ -266,7 +285,6 @@ class CheckoutController extends Controller
             if ($response->success()) {
                 $transaction->update([
                     'poll_url' => $response->pollUrl(),
-
                 ]);
 
                 return response()->json([
@@ -288,6 +306,7 @@ class CheckoutController extends Controller
             ], 500);
         }
     }
+
     /**
      * Check Ecocash payment status
      */
@@ -432,45 +451,32 @@ class CheckoutController extends Controller
             ->update(['is_default' => false]);
     }
 
-    /**
-     * Calculate tax for the order
-     */
-    private function calculateTax($cart)
-    {
-        // Simplified tax calculation - in a real application, you would have
-        // more complex logic based on shipping address, product type, etc.
-        $taxRate = 0.1; // 10% tax rate
-        $taxableAmount = $cart->items->sum('total_price') - ($cart->discount_amount ?? 0);
-        return round($taxableAmount * $taxRate, 2);
-    }
+
 
     /**
-     * Calculate shipping cost
+     * Calculate shipping cost based on delivery location
      */
-    private function calculateShipping($cart)
+    private function calculateShipping($cart, $address)
     {
-        // Simplified shipping calculation - in a real application, you would have
-        // more complex logic based on shipping address, product weight, etc.
-        $subtotal = $cart->items->sum('total_price');
-
-        // Free shipping for orders over $50
-        if ($subtotal >= 50) {
-            return 0;
+        // Always use the delivery location price for shipping
+        if ($address->deliveryLocation) {
+            return $address->deliveryLocation->price;
         }
 
-        // Base shipping cost
-        return 5.99;
+        // If for some reason there's no delivery location (should not happen in production)
+        // throw an exception to prevent proceeding with incorrect shipping costs
+        throw new \Exception('No delivery location found for this address');
     }
 
     /**
      * Calculate the total order amount
      */
-    private function calculateTotal($cart)
+    private function calculateTotal($cart, $address)
     {
         $subtotal = $cart->items->sum('total_price');
         $discount = $cart->discount_amount ?? 0;
-        $tax = $this->calculateTax($cart);
-        $shipping = $this->calculateShipping($cart);
+        $tax = $this->taxService->calculateTax($cart, $address);
+        $shipping = $this->calculateShipping($cart, $address);
 
         return round($subtotal + $shipping + $tax - $discount, 2);
     }

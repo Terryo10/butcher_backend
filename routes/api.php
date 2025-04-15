@@ -9,6 +9,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SubcategoryController;
+use App\Http\Controllers\TaxController;
 use App\Http\Controllers\WishlistController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -77,6 +78,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}', [AddressController::class, 'update']);
         Route::delete('/{id}', [AddressController::class, 'destroy']);
         Route::post('/{id}/default', [AddressController::class, 'setDefault']);
+    });
+
+    Route::prefix('taxes')->group(function () {
+        Route::get('/', [TaxController::class, 'index']);
+        Route::get('/default', [TaxController::class, 'getDefaultTax']);
+        Route::post('/region', [TaxController::class, 'getTaxForRegion']);
+        Route::post('/calculate', [TaxController::class, 'calculateTax']);
     });
 
     // Payment method routes
